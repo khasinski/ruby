@@ -280,6 +280,10 @@ class Set
       elsif other.instance_of?(self.class)
         super
       elsif other.is_a?(Set) && self.size == other.size
+        # Empty sets are equal regardless of compare_by_identity (matches core Set behavior)
+        return true if empty?
+        # Non-empty sets with different compare_by_identity are not equal
+        return false if compare_by_identity? != other.compare_by_identity?
         other.all? { |o| include?(o) }
       else
         false

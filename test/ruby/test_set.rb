@@ -731,6 +731,50 @@ class TC_Set < Test::Unit::TestCase
     assert_not_equal(Set[Exception.new,nil], Set[Exception.new,Exception.new], "[ruby-dev:26127]")
   end
 
+  def test_eq_with_compare_by_identity
+    # [Bug #21376] Sets with different compare_by_identity should not be equal
+    o = Object.new
+
+    # Test with core Set vs subclass
+    set_cbi = Set.new([o]).compare_by_identity
+    set_normal = SetSubclass.new([o])
+
+    # Core Set with compare_by_identity vs subclass without - should be not equal
+    assert_not_equal(set_cbi, set_normal)
+    # Symmetry: subclass vs core Set should also be not equal
+    assert_not_equal(set_normal, set_cbi)
+
+    # Test with subclass vs core Set (reversed)
+    subclass_cbi = SetSubclass.new([o]).compare_by_identity
+    core_normal = Set.new([o])
+
+    assert_not_equal(subclass_cbi, core_normal)
+    assert_not_equal(core_normal, subclass_cbi)
+
+    # Same compare_by_identity settings should be equal
+    set1 = Set.new([o]).compare_by_identity
+    set2 = SetSubclass.new([o]).compare_by_identity
+    assert_equal(set1, set2)
+    assert_equal(set2, set1)
+
+    set3 = Set.new([o])
+    set4 = SetSubclass.new([o])
+    assert_equal(set3, set4)
+    assert_equal(set4, set3)
+
+    # Empty sets should be equal regardless of compare_by_identity
+    empty_cbi = Set.new.compare_by_identity
+    empty_normal = SetSubclass.new
+    assert_equal(empty_cbi, empty_normal)
+    assert_equal(empty_normal, empty_cbi)
+
+    # Test between two subclasses with different compare_by_identity
+    sub1_cbi = SetSubclass.new([o]).compare_by_identity
+    sub2_normal = SetSubclass.new([o])
+    assert_not_equal(sub1_cbi, sub2_normal)
+    assert_not_equal(sub2_normal, sub1_cbi)
+  end
+
   def test_classify
     set = Set.new(1..10)
     ret = set.classify { |i| i % 3 }
