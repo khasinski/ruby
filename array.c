@@ -3833,21 +3833,38 @@ append_values_at_single(VALUE result, VALUE ary, long olen, VALUE idx)
         beg = FIX2LONG(idx);
     }
     /* check if idx is Range */
-    else if (rb_range_beg_len(idx, &beg, &len, olen, 1)) {
-        if (len > 0) {
-            const VALUE *const src = RARRAY_CONST_PTR(ary);
-            const long end = beg + len;
-            const long prevlen = RARRAY_LEN(result);
-            if (beg < olen) {
-                rb_ary_cat(result, src + beg, end > olen ? olen-beg : len);
-            }
-            if (end > olen) {
-                rb_ary_store(result, prevlen + len - 1, Qnil);
-            }
-        }
-        return result;
-    }
     else {
+        VALUE b, e;
+        int excl;
+        if (rb_range_values(idx, &b, &e, &excl)) {
+            long rb = NUM2LONG(b);
+            long re = NUM2LONG(e);
+            /* Check if negative start would be out of bounds */
+            if (rb < 0 && rb + olen < 0) {
+                /* Negative start is out of bounds - iterate and lookup each index */
+                if (!excl) re++;
+                for (long i = rb; i < re; i++) {
+                    rb_ary_push(result, rb_ary_entry(ary, i));
+                }
+                return result;
+            }
+            /* Use standard range handling for valid ranges */
+            if (rb_range_beg_len(idx, &beg, &len, olen, 1)) {
+                if (len > 0) {
+                    const VALUE *const src = RARRAY_CONST_PTR(ary);
+                    const long end = beg + len;
+                    const long prevlen = RARRAY_LEN(result);
+                    if (beg < olen) {
+                        rb_ary_cat(result, src + beg, end > olen ? olen-beg : len);
+                    }
+                    if (end > olen) {
+                        rb_ary_store(result, prevlen + len - 1, Qnil);
+                    }
+                }
+            }
+            return result;
+        }
+        /* Not a range, convert to number */
         beg = NUM2LONG(idx);
     }
     return rb_ary_push(result, rb_ary_entry(ary, beg));
@@ -3878,7 +3895,7 @@ append_values_at_single(VALUE result, VALUE ary, long olen, VALUE idx)
  *    a.values_at(3..1)       # => []              # No such elements.
  *
  *    a.values_at(-3..3)  # => ["b", "c", "d"]     # Negative range.begin counts backwards.
- *    a.values_at(-50..3)                          # Raises RangeError.
+ *    a.values_at(-50..3) # => [nil, nil, ...]     # Out-of-bounds filled with nil.
  *
  *    a.values_at(1..-2)  # => ["b", "c"]          # Negative range.end counts backwards.
  *    a.values_at(1..-50) # => []                  # No such elements.

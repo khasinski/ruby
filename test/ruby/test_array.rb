@@ -2802,6 +2802,25 @@ class TestArray < Test::Unit::TestCase
     assert_equal([nil], a.values_at(2**31-1))
   end
 
+  def test_values_at_negative_out_of_bounds_range
+    # [Bug #20957] Negative out-of-bounds ranges should return nil, not raise RangeError
+    a = [0, 1, 2, 3]
+
+    # Fully out-of-bounds negative ranges
+    assert_equal([nil], a.values_at(-10..-10))
+    assert_equal([nil, nil, nil], a.values_at(-10..-8))
+
+    # Partially out-of-bounds negative ranges
+    assert_equal([nil, 0, 1, 2], a.values_at(-5..-2))
+
+    # Exclusive ranges
+    assert_equal([nil, nil], a.values_at(-10...-8))
+
+    # Consistency with single negative indices
+    assert_equal([nil], a.values_at(-10))
+    assert_equal(a.values_at(-10), a.values_at(-10..-10))
+  end
+
   def test_select
     assert_equal([0, 2], [0, 1, 2, 3].select {|x| x % 2 == 0 })
   end
